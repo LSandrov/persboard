@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS eazybi_metric_weights (
+  metric_key VARCHAR(64) PRIMARY KEY,
+  title VARCHAR(160) NOT NULL,
+  weight NUMERIC(10,4) NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
