@@ -1,113 +1,98 @@
 # Persboard
 
-Admin dashboard skeleton for team lead managers.
+Persboard — каркас админ-панели для руководителей команд: структура организации, статистика людей и календарные метрики.
 
-## Stack
+## Цели проекта
+- Быстрый старт fullstack-проекта (Frontend + Backend + PostgreSQL) в Docker.
+- Пример API с валидацией JSON, таймаутами и предсказуемыми ответами.
+- Опциональная интеграция календарных метрик с self-hosted EazyBI.
 
+## Стек
 - `frontend`: Vue 3 + TypeScript + Vite + Nginx
 - `backend`: Go HTTP API
 - `db`: PostgreSQL 16
 
-## Quick Start
+## Развертка
 
+### Требования
+- Docker + Docker Compose
+
+### 1) Конфигурация окружения
+Перед запуском `docker-compose` используйте корневой файл `.env`.
+
+1. Скопируйте `./.env.example` -> `./.env`
+2. Заполните значения (включая секреты для EazyBI, если вы хотите реальные данные).
+
+`./.env` добавлен в `.gitignore`, чтобы секреты не попадали в репозиторий.
+
+Ссылки по технологиям:
+- Docker Compose: https://docs.docker.com/compose/
+- Vue 3: https://vuejs.org/
+- Go `net/http`: https://pkg.go.dev/net/http
+- PostgreSQL: https://www.postgresql.org/docs/
+
+### 2) Запуск
 ```bash
 docker-compose up --build
 ```
 
-Services:
-
+Сервисы:
 - Frontend: `http://localhost:5173`
 - Backend health: `http://localhost:8080/api/health`
-- Backend metrics: `http://localhost:8080/api/v1/dashboard/metrics`
-- Org structure: `http://localhost:8080/api/v1/org-structure`
-- People stats: `http://localhost:8080/api/v1/people/stats`
-- PostgreSQL: `localhost:5432` (`persboard/persboard`)
+- PostgreSQL: `localhost:5432`
 
-## Notes
+## Данные PostgreSQL
+Данные БД хранятся в bind-mount `./.docker/postgres-data`.
 
-- Frontend uses `/api/*` and proxies requests to `backend:8080` inside Docker network.
-- Backend checks PostgreSQL availability in `/api/health`.
-- Metrics are SQL-backed (`total teams`, `active people`).
-- Seed data for teams/people is created by `backend/migrations/001_init.sql` on fresh Postgres volume.
-- Calendar metric weights table is created by `backend/migrations/002_calendar_metric_weights.sql`.
-- If you already started the project before migrations, run:
-  - `docker-compose down -v`
-  - `docker-compose up --build`
+Поэтому:
+- обычные перезапуски/пересоздания контейнеров обычно не обнуляют БД
+- для полного сброса удалите `./.docker/postgres-data`
 
-## API Write Examples
+## Инициализация и миграции
+При первом старте (или после удаления `./.docker/postgres-data`) выполняются:
+- `backend/migrations/001_init.sql` — seed-данные команд/людей
+- `backend/migrations/002_calendar_metric_weights.sql` — таблица весов календарных метрик
 
-Create team:
+Если нужно вернуться к “чистой” базе, удалите `./.docker/postgres-data` и запустите проект заново.
 
-```bash
-curl -X POST http://localhost:8080/api/v1/teams \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Data Team"}'
-```
+## API (backend)
+Все ответы — JSON.
 
-Create person:
+### Health
+- `GET /api/health`
 
-```bash
-curl -X POST http://localhost:8080/api/v1/people \
-  -H "Content-Type: application/json" \
-  -d '{"fullName":"Nikita Sokolov","role":"Data Analyst","velocity":70,"isActive":true,"teamId":1}'
-```
+### Дашборд
+- `GET /api/v1/dashboard/metrics`
 
-## Calendar Metrics (EazyBI)
+### Организация и люди
+- `GET /api/v1/org-structure`
+- `GET /api/v1/people/stats`
+- `POST /api/v1/teams` (body: `{ "name": "Data Team", "leadId": 1 }`, поле `leadId` можно опустить или передать `null`)
+- `POST /api/v1/people` (body: `{ "fullName":"...", "role":"...", "velocity":70, "isActive":true, "teamId":1, "teamLeadId": 2 }`, поле `teamLeadId` можно опустить или передать `null`)
 
-Backend exposes:
-
+### Календарные метрики
 - `GET /api/v1/calendar/metrics?from=YYYY-MM-DD&to=YYYY-MM-DD`
-- `PUT /api/v1/calendar/metric-weights` with body:
-  `{"metricKey":"metric-1","weight":2.5}`
+- `PUT /api/v1/calendar/metric-weights` (body: `{ "metricKey":"tickets", "weight":2.5 }`)
 
-Если `EAZYBI_BASE_URL` и `CALENDAR_METRICS_JSON` не настроены, значения для календаря подставляются mock-данными (UI всё равно работает).
+Пояснение:
+- окно дат ограничено 1..31 день
+- если `from/to` не переданы, сервер берёт период по умолчанию (последние ~6 дней)
 
-Чтобы включить реальные значения из self-hosted EazyBI:
+## EazyBI (опционально)
+Если настроены `EAZYBI_BASE_URL`, `EAZYBI_ACCOUNT_ID` и `EAZYBI_EXPORT_PREFIX`, бэкенд будет пытаться получать данные из EazyBI.
 
-- `EAZYBI_BASE_URL` (например `https://jira.example.com`)
-- `EAZYBI_EXPORT_PREFIX` (для Data Center обычно `/plugins/servlet/eazybi`)
-- `EAZYBI_ACCOUNT_ID`
-- `EAZYBI_AUTH_MODE` (`basic` ожидается для self-hosted)
-- `EAZYBI_USERNAME`, `EAZYBI_PASSWORD`
-- `EAZYBI_ALLOWED_HOSTS` (comma-separated; требуется из-за SSRF защиты)
-- `CALENDAR_METRICS_JSON` (JSON массив с определениями метрик)
+Если конфигурация отсутствует/неполная — используются mock-значения, чтобы UI продолжал работать.
 
-Пример `CALENDAR_METRICS_JSON` (3 метрики, включая негативную):
+Важно из-за SSRF-защиты:
+- `EAZYBI_ALLOWED_HOSTS` — allowlist hostname (comma-separated). Должен включать hostname из `EAZYBI_BASE_URL`.
 
-```json
-[
-  {
-    "key": "tickets",
-    "title": "Tickets",
-    "defaultWeight": 1,
-    "metricType": "positive",
-    "targetOperator": "gt",
-    "targetValue": { "number": 100 },
-    "eazybiReportId": 123,
-    "eazybiFormat": "csv",
-    "timeMemberFormat": "[Time].[%s]"
-  },
-  {
-    "key": "storyPoints",
-    "title": "Story Points",
-    "defaultWeight": 0.5,
-    "metricType": "neutral",
-    "targetOperator": "eq",
-    "targetValue": { "number": 50 },
-    "eazybiReportId": 456,
-    "eazybiFormat": "csv",
-    "timeMemberFormat": "[Time].[%s]"
-  },
-  {
-    "key": "defectsPerSprint",
-    "title": "Defects / sprint",
-    "defaultWeight": 1,
-    "metricType": "negative",
-    "targetOperator": "lt",
-    "targetValue": { "number": 5 },
-    "eazybiReportId": 789,
-    "eazybiFormat": "csv",
-    "timeMemberFormat": "[Time].[%s]"
-  }
-]
-```
+Основные переменные:
+- `EAZYBI_AUTH_MODE` (`basic` ожидается для self-hosted; есть режим `embed`)
+- `EAZYBI_USERNAME`, `EAZYBI_PASSWORD` (для `basic`)
+- `EAZYBI_EMBED_TOKEN` (для `embed`)
+- `CALENDAR_METRICS_JSON` — JSON-массив определений метрик (если оставить пустым, используется дефолт)
+
+## Заметки по разработке
+- Frontend проксирует запросы к бэкенду внутри Docker-сети, используя `VITE_API_BASE_URL`.
+- Бэкенд декодирует JSON с `DisallowUnknownFields()`: лишние поля в request body вернут ошибку.
+- При включении EazyBI используется валидация URL (разрешённые хосты + блокировка private/loopback/link-local IP).

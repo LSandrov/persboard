@@ -2,17 +2,17 @@ version: "3.9"
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: persboard-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: persboard
-      POSTGRES_USER: persboard
-      POSTGRES_PASSWORD: persboard
+      POSTGRES_DB: ${DB_NAME:-persboard}
+      POSTGRES_USER: ${DB_USER:-persboard}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-persboard}
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ./.docker/postgres-data:/var/lib/postgresql/data
       - ./backend/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U persboard -d persboard"]
@@ -27,14 +27,25 @@ services:
     container_name: persboard-backend
     restart: unless-stopped
     environment:
-      PORT: 8080
-      CORS_ORIGIN: http://localhost:5173
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: persboard
-      DB_USER: persboard
-      DB_PASSWORD: persboard
-      DB_SSLMODE: disable
+      PORT: ${PORT:-8080}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-persboard}
+      DB_USER: ${DB_USER:-persboard}
+      DB_PASSWORD: ${DB_PASSWORD:-persboard}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+
+      # EazyBI + calendar metrics integration
+      EAZYBI_BASE_URL: ${EAZYBI_BASE_URL:-}
+      EAZYBI_EXPORT_PREFIX: ${EAZYBI_EXPORT_PREFIX:-}
+      EAZYBI_ACCOUNT_ID: ${EAZYBI_ACCOUNT_ID:-}
+      EAZYBI_AUTH_MODE: ${EAZYBI_AUTH_MODE:-}
+      EAZYBI_USERNAME: ${EAZYBI_USERNAME:-}
+      EAZYBI_PASSWORD: ${EAZYBI_PASSWORD:-}
+      EAZYBI_EMBED_TOKEN: ${EAZYBI_EMBED_TOKEN:-}
+      EAZYBI_ALLOWED_HOSTS: ${EAZYBI_ALLOWED_HOSTS:-}
+      CALENDAR_METRICS_JSON: ${CALENDAR_METRICS_JSON:-}
     ports:
       - "8080:8080"
     depends_on:
@@ -45,12 +56,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
     container_name: persboard-frontend
     restart: unless-stopped
     ports:
       - "5173:80"
     depends_on:
       - backend
-
-volumes:
-  postgres-data:

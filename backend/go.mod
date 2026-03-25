@@ -1,6 +1,6 @@
 module persboard/backend
 
-go 1.22
+go 1.26
 
 require github.com/jackc/pgx/v5 v5.7.2
 
