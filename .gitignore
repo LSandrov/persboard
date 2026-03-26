@@ -4,6 +4,5 @@
 
 # Local Docker artifacts (persisted data, logs, etc.)
 .docker/
-!.docker/
 !.docker/.gitkeep
 

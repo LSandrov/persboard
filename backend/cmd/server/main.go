@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	dbmigrations "persboard/backend/migrations"
 	"persboard/backend/internal/platform"
 	"persboard/backend/internal/repository/postgres"
 	"persboard/backend/internal/service"
@@ -27,6 +29,16 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	migrationCtx, cancelMigrations := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelMigrations()
+	appliedMigrations, err := dbmigrations.Apply(migrationCtx, db)
+	if err != nil {
+		log.Fatalf("failed to apply database migrations: %v", err)
+	}
+	if len(appliedMigrations) > 0 {
+		log.Printf("applied migrations: %v", appliedMigrations)
+	}
 
 	repository := postgres.NewRepository(db)
 	orgService := service.NewOrgService(repository)

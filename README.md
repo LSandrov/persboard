@@ -33,7 +33,8 @@ Persboard — каркас админ-панели для руководител
 
 ### 2) Запуск
 ```bash
-docker-compose up --build
+make init
+make up
 ```
 
 Сервисы:

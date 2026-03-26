@@ -121,16 +121,88 @@ function valueHighlightClass(m: CalendarMetric, cell: { number?: number; bool?: 
   }
 }
 
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function buildDaysRange(fromDate: string, toDate: string): string[] {
+  const start = new Date(`${fromDate}T00:00:00Z`);
+  const end = new Date(`${toDate}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return [];
+  }
+
+  const out: string[] = [];
+  const current = new Date(start);
+  while (current <= end) {
+    out.push(ymd(current));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function fallbackMetrics(rangeDays: string[]): CalendarMetric[] {
+  const makeValues = (fn: (idx: number) => { number?: number; bool?: boolean } | null) => {
+    const values: Record<string, { number?: number; bool?: boolean } | null> = {};
+    rangeDays.forEach((d, idx) => {
+      values[d] = fn(idx);
+    });
+    return values;
+  };
+
+  return [
+    {
+      key: "tickets",
+      title: "Tickets",
+      metricType: "positive",
+      targetOperator: "gt",
+      targetValue: { number: 100 },
+      weight: 1,
+      valuesByDate: makeValues((idx) => ({ number: 80 + (idx % 5) * 8 }))
+    },
+    {
+      key: "storyPoints",
+      title: "Story Points",
+      metricType: "neutral",
+      targetOperator: "eq",
+      targetValue: { number: 50 },
+      weight: 0.5,
+      valuesByDate: makeValues((idx) => ({ number: 44 + (idx % 4) * 3 }))
+    },
+    {
+      key: "defectsPerSprint",
+      title: "Defects / sprint",
+      metricType: "negative",
+      targetOperator: "lt",
+      targetValue: { number: 5 },
+      weight: 1,
+      valuesByDate: makeValues((idx) => ({ number: 3 + (idx % 4) }))
+    }
+  ];
+}
+
+function useFallbackCalendarData(message: string) {
+  const rangeDays = buildDaysRange(from.value, to.value);
+  days.value = rangeDays;
+  metrics.value = fallbackMetrics(rangeDays);
+  error.value = `${message}. Showing fallback data.`;
+}
+
 const load = async () => {
   loading.value = true;
   error.value = "";
 
   try {
     const resp = await fetchCalendarMetrics({ from: from.value, to: to.value });
+    if (resp.metrics.length === 0 || resp.days.length === 0) {
+      useFallbackCalendarData("Backend returned empty calendar metrics");
+      return;
+    }
     metrics.value = resp.metrics;
     days.value = resp.days;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : "Unknown error";
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    useFallbackCalendarData(msg);
   } finally {
     loading.value = false;
   }

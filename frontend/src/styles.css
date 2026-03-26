@@ -4,6 +4,8 @@
   background: #f8fafc;
   line-height: 1.5;
   font-weight: 400;
+  --parallax-x: 50%;
+  --parallax-y: 50%;
 }
 
 * {
@@ -14,10 +16,40 @@ body {
   margin: 0;
 }
 
+#app {
+  position: relative;
+  isolation: isolate;
+}
+
+.tech-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      180px circle at var(--parallax-x) var(--parallax-y),
+      rgba(148, 163, 184, 0.14),
+      rgba(148, 163, 184, 0) 70%
+    ),
+    radial-gradient(circle, rgba(148, 163, 184, 0.275) 0.9px, transparent 1.1px),
+    linear-gradient(180deg, #f8fafc, #f1f5f9);
+  background-size:
+    100% 100%,
+    22px 22px,
+    100% 100%;
+  background-position:
+    0 0,
+    calc((var(--parallax-x) - 50%) * 0.05) calc((var(--parallax-y) - 50%) * 0.05),
+    0 0;
+}
+
 .layout {
   max-width: 1080px;
   margin: 0 auto;
   padding: 24px;
+  position: relative;
+  z-index: 1;
 }
 
 .header {
@@ -90,16 +122,20 @@ h1 {
 }
 
 .details-card {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.8);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
+  backdrop-filter: blur(2px);
 }
 
 .details-card h2 {
   margin: 0 0 10px;
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #0b1220;
 }
 
 .teams-grid {
@@ -152,10 +188,12 @@ h1 {
 }
 
 .calendar-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid #d7dce5;
+  border-radius: 10px;
   padding: 12px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  backdrop-filter: blur(2px);
 }
 
 .calendar-scroll {
@@ -164,24 +202,39 @@ h1 {
 }
 
 .calendar-table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   min-width: 900px;
   width: max-content;
+  font-size: 13px;
 }
 
 .calendar-table th,
 .calendar-table td {
-  border-bottom: 1px solid #e2e8f0;
-  padding: 8px 10px;
+  border-right: 1px solid #e8eaed;
+  border-bottom: 1px solid #e8eaed;
+  padding: 7px 10px;
   text-align: center;
   white-space: nowrap;
+  background: rgba(255, 255, 255, 0.94);
 }
 
 .calendar-table thead th {
   position: sticky;
   top: 0;
-  background: #f8fafc;
+  background: #f8f9fa;
   z-index: 1;
+  color: #5f6368;
+  font-weight: 600;
+  border-top: 1px solid #e8eaed;
+}
+
+.calendar-table tr > :first-child {
+  border-left: 1px solid #e8eaed;
+}
+
+.calendar-table tbody tr:hover td {
+  background: #f5f9ff;
 }
 
 .metric-col {
@@ -190,8 +243,8 @@ h1 {
 
 .metric-name {
   text-align: left;
-  font-weight: 600;
-  color: #0f172a;
+  font-weight: 500;
+  color: #202124;
 }
 
 .weight-cell {
