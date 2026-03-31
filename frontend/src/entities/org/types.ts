@@ -6,6 +6,8 @@ export type Person = {
   isActive: boolean;
   teamId: number;
   teamLeadId?: number;
+  birthDate?: string;
+  employmentDate?: string;
 };
 
 export type Team = {

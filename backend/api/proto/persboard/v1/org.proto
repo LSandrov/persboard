@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package persboard.v1;
+
+option go_package = "persboard/backend/api/gen/api/proto/persboard/v1;persboardv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service OrgService {
+  rpc Health(google.protobuf.Empty) returns (HealthResponse) {
+    option (google.api.http) = {get: "/api/health"};
+  }
+
+  rpc GetDashboardMetrics(google.protobuf.Empty) returns (DashboardMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1/dashboard/metrics"};
+  }
+
+  rpc GetPeopleStats(google.protobuf.Empty) returns (PeopleStatsResponse) {
+    option (google.api.http) = {get: "/api/v1/people/stats"};
+  }
+
+  rpc GetOrgStructure(google.protobuf.Empty) returns (OrgStructureResponse) {
+    option (google.api.http) = {get: "/api/v1/org-structure"};
+  }
+
+  rpc CreateTeam(CreateTeamRequest) returns (TeamMutationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/teams"
+      body: "*"
+    };
+  }
+
+  rpc UpdateTeam(UpdateTeamRequest) returns (TeamMutationResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/teams/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteTeam(DeleteByIDRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/api/v1/teams/{id}"};
+  }
+
+  rpc CreatePerson(CreatePersonRequest) returns (PersonMutationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/people"
+      body: "*"
+    };
+  }
+
+  rpc UpdatePerson(UpdatePersonRequest) returns (PersonMutationResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/people/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeletePerson(DeleteByIDRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/api/v1/people/{id}"};
+  }
+
+  rpc GetCalendarMetrics(GetCalendarMetricsRequest) returns (CalendarMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1/calendar/metrics"};
+  }
+
+  rpc UpdateMetricWeight(UpdateMetricWeightRequest) returns (MetricWeightResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/calendar/metric-weights"
+      body: "*"
+    };
+  }
+}
+
+message HealthResponse {
+  string status = 1;
+  string db = 2;
+}
+
+message Metric {
+  string key = 1;
+  string title = 2;
+  string value = 3;
+  string trend = 4;
+}
+
+message DashboardMetricsResponse {
+  google.protobuf.Timestamp updated_at = 1;
+  repeated Metric metrics = 2;
+}
+
+message PeopleStatsResponse {
+  int32 total_people = 1;
+  int32 active_people = 2;
+  double average_velocity = 3;
+}
+
+message Person {
+  int32 id = 1;
+  string full_name = 2;
+  string role = 3;
+  double velocity = 4;
+  bool is_active = 5;
+  int32 team_id = 6;
+  optional int32 team_lead_id = 7;
+  optional string birth_date = 8;
+  optional string employment_date = 9;
+}
+
+message Team {
+  int32 id = 1;
+  string name = 2;
+  optional int32 lead_id = 3;
+  repeated Person members = 4;
+}
+
+message OrgStructureResponse {
+  google.protobuf.Timestamp updated_at = 1;
+  repeated Team teams = 2;
+}
+
+message CreateTeamRequest {
+  string name = 1;
+  optional int32 lead_id = 2;
+}
+
+message UpdateTeamRequest {
+  int32 id = 1;
+  string name = 2;
+  optional int32 lead_id = 3;
+}
+
+message TeamMutationResponse {
+  int32 id = 1;
+  string name = 2;
+}
+
+message CreatePersonRequest {
+  string full_name = 1;
+  string role = 2;
+  double velocity = 3;
+  bool is_active = 4;
+  int32 team_id = 5;
+  optional int32 team_lead_id = 6;
+  optional string birth_date = 7;
+  optional string employment_date = 8;
+}
+
+message UpdatePersonRequest {
+  int32 id = 1;
+  string full_name = 2;
+  string role = 3;
+  double velocity = 4;
+  bool is_active = 5;
+  int32 team_id = 6;
+  optional int32 team_lead_id = 7;
+  optional string birth_date = 8;
+  optional string employment_date = 9;
+}
+
+message PersonMutationResponse {
+  int32 id = 1;
+  string full_name = 2;
+}
+
+message DeleteByIDRequest {
+  int32 id = 1;
+}
+
+message GetCalendarMetricsRequest {
+  string from = 1;
+  string to = 2;
+}
+
+message CalendarMetricCellValue {
+  optional double number = 1;
+  optional bool bool = 2;
+}
+
+message TargetValue {
+  optional double number = 1;
+  optional bool bool = 2;
+}
+
+message CalendarMetric {
+  string key = 1;
+  string title = 2;
+  double weight = 3;
+  string metric_type = 4;
+  TargetValue target_value = 5;
+  string target_operator = 6;
+  map<string, CalendarMetricCellValue> values_by_date = 7;
+}
+
+message CalendarMetricsResponse {
+  string from = 1;
+  string to = 2;
+  repeated string days = 3;
+  repeated CalendarMetric metrics = 4;
+}
+
+message UpdateMetricWeightRequest {
+  string metric_key = 1;
+  double weight = 2;
+}
+
+message MetricWeightResponse {
+  string key = 1;
+  string title = 2;
+  double weight = 3;
+}

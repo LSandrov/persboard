@@ -1,0 +1,5 @@
+version: v1
+name: buf.build/persboard/backend
+
+deps:
+  - buf.build/googleapis/googleapis

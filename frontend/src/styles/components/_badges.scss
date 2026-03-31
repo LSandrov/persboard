@@ -1,0 +1,98 @@
+.cell-good-positive,
+.cell-good-negative,
+.cell-good-neutral,
+.cell-bad-positive,
+.cell-bad-negative,
+.cell-bad-neutral {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.cell-good-positive {
+  background: #dcfce7;
+  color: #065f46;
+  border: 1px solid #86efac;
+}
+
+.cell-good-negative {
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
+.cell-good-neutral {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.cell-bad-positive {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.cell-bad-negative {
+  background: #ecfccb;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.cell-bad-neutral {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.type-badge {
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  display: inline-block;
+}
+
+.metric-type-positive {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.metric-type-negative {
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
+.metric-type-neutral {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.dept-status-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.dept-status-ok {
+  background: #dcfce7;
+  color: #065f46;
+  border-color: #86efac;
+}
+
+.dept-status-warn {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.dept-status-bad {
+  background: #ffe4e6;
+  color: #9f1239;
+  border-color: #fecdd3;
+}

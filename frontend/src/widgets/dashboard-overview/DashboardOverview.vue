@@ -9,6 +9,7 @@ const {
   metrics,
   teams,
   peopleStats,
+  orgSummary,
   formattedUpdatedAt,
   loadDashboard
 } = useDashboardOverview();
@@ -33,6 +34,12 @@ const {
         <p class="metric-value">{{ item.value }}</p>
         <p class="metric-trend">{{ item.trend }}</p>
       </article>
+    </section>
+
+    <section class="details-card">
+      <h2>Кратко по структуре</h2>
+      <p>Команд: {{ orgSummary.totalTeams }}</p>
+      <p>Участников: {{ orgSummary.totalMembers }}</p>
     </section>
 
     <DepartmentStatus />

@@ -2,20 +2,60 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	dbmigrations "persboard/backend/migrations"
 	"persboard/backend/internal/platform"
 	"persboard/backend/internal/repository/postgres"
 	"persboard/backend/internal/service"
-	"persboard/backend/internal/transport/httpapi"
+	"persboard/backend/internal/transport/grpcapi"
+	orgusecase "persboard/backend/internal/usecase/org"
 )
 
 func main() {
 	port := getEnv("PORT", "8080")
+	logDir := getEnv("LOG_DIR", ".docker/logs")
+	debugLog := strings.EqualFold(getEnv("LOG_DEBUG", "false"), "true") ||
+		strings.EqualFold(getEnv("LOG_LEVEL", ""), "debug")
+
+	var accessLog *os.File
+	var appLog *os.File
+	if strings.TrimSpace(logDir) != "" {
+		var errLog error
+		accessLog, appLog, errLog = platform.InitLogging(logDir, debugLog)
+		if errLog != nil {
+			fallbackDir := "/tmp/persboard-logs"
+			accessLog, appLog, errLog = platform.InitLogging(fallbackDir, debugLog)
+			if errLog != nil {
+				log.Printf("warning: file logging disabled (%v); using stderr only for slog", errLog)
+				level := slog.LevelInfo
+				if debugLog {
+					level = slog.LevelDebug
+				}
+				slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+			} else {
+				log.Printf("warning: log dir %q unavailable, using fallback %q", logDir, fallbackDir)
+				logDir = fallbackDir
+				defer func() { _ = accessLog.Close() }()
+				defer func() { _ = appLog.Close() }()
+			}
+		} else {
+			defer func() { _ = accessLog.Close() }()
+			defer func() { _ = appLog.Close() }()
+		}
+	} else {
+		level := slog.LevelInfo
+		if debugLog {
+			level = slog.LevelDebug
+		}
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	}
 
 	db, err := platform.ConnectDB(platform.DBConfig{
 		Host:     getEnv("DB_HOST", "localhost"),
@@ -41,8 +81,7 @@ func main() {
 	}
 
 	repository := postgres.NewRepository(db)
-	orgService := service.NewOrgService(repository)
-	handler := httpapi.NewHandler(orgService)
+	orgUC := orgusecase.NewUseCase(repository)
 
 	metricsDefs, err := service.LoadCalendarMetricsFromEnv()
 	if err != nil {
@@ -53,15 +92,37 @@ func main() {
 		log.Fatalf("failed to build EazyBI client: %v", err)
 	}
 	calendarSvc := service.NewCalendarService(repository, eazyClient, metricsDefs)
-	calendarHandler := httpapi.NewCalendarHandler(calendarSvc)
+
+	grpcPort := getEnv("GRPC_PORT", "9090")
+	grpcAddr := ":" + grpcPort
+	grpcEndpoint := getEnv("GRPC_ENDPOINT", "127.0.0.1:"+grpcPort)
+	go func() {
+		if err := grpcapi.StartGRPCServer(grpcAddr, orgUC, calendarSvc); err != nil {
+			log.Fatalf("grpc server error: %v", err)
+		}
+	}()
 
 	mux := http.NewServeMux()
-	handler.RegisterRoutes(mux)
-	calendarHandler.RegisterRoutes(mux)
+
+	gatewayCtx, cancelGateway := context.WithCancel(context.Background())
+	defer cancelGateway()
+	gatewayMux, err := grpcapi.NewGatewayMux(gatewayCtx, grpcEndpoint)
+	if err != nil {
+		log.Fatalf("failed to init grpc gateway: %v", err)
+	}
+	mux.Handle("/", gatewayMux)
+
+	core := platform.WithRequestID(mux)
+	core = platform.WithCORS(core, getEnv("CORS_ORIGIN", "http://localhost:5173"))
+
+	accessWriter := io.Writer(io.Discard)
+	if accessLog != nil {
+		accessWriter = accessLog
+	}
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           platform.WithCORS(mux, getEnv("CORS_ORIGIN", "http://localhost:5173")),
+		Handler:           platform.WithAccessLog(accessWriter, core),
 		ReadTimeout:       10 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -69,7 +130,9 @@ func main() {
 		MaxHeaderBytes:    1 << 20,
 	}
 
+	slog.Info("backend starting", "http_addr", ":"+port, "grpc_addr", grpcAddr, "log_dir", logDir, "debug", debugLog)
 	log.Printf("backend started on :%s", port)
+	log.Printf("grpc started on %s (gateway -> %s)", grpcAddr, grpcEndpoint)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server error: %v", err)
 	}

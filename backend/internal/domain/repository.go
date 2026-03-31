@@ -11,6 +11,10 @@ type Repository interface {
 	GetPeople(ctx context.Context) ([]Person, error)
 	CreateTeam(ctx context.Context, input CreateTeamInput) (int, error)
 	CreatePerson(ctx context.Context, input CreatePersonInput) (int, error)
+	UpdateTeam(ctx context.Context, id int, input UpdateTeamInput) error
+	DeleteTeam(ctx context.Context, id int) error
+	UpdatePerson(ctx context.Context, id int, input UpdatePersonInput) error
+	DeletePerson(ctx context.Context, id int) error
 	UpsertMetricWeights(ctx context.Context, defs []CalendarMetricDefinition) error
 	GetMetricWeights(ctx context.Context, keys []string) (map[string]MetricWeight, error)
 	SetMetricWeight(ctx context.Context, input UpdateMetricWeightInput, title string) error

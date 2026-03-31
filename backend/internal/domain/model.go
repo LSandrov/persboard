@@ -21,13 +21,15 @@ type PersonStats struct {
 }
 
 type Person struct {
-	ID         int     `json:"id"`
-	FullName   string  `json:"fullName"`
-	Role       string  `json:"role"`
-	Velocity   float64 `json:"velocity"`
-	IsActive   bool    `json:"isActive"`
-	TeamID     int     `json:"teamId"`
-	TeamLeadID *int    `json:"teamLeadId,omitempty"`
+	ID               int     `json:"id"`
+	FullName         string  `json:"fullName"`
+	Role             string  `json:"role"`
+	Velocity         float64 `json:"velocity"`
+	IsActive         bool    `json:"isActive"`
+	TeamID           int     `json:"teamId"`
+	TeamLeadID       *int    `json:"teamLeadId,omitempty"`
+	BirthDate        *string `json:"birthDate,omitempty"`
+	EmploymentDate   *string `json:"employmentDate,omitempty"`
 }
 
 type Team struct {
@@ -48,10 +50,28 @@ type CreateTeamInput struct {
 }
 
 type CreatePersonInput struct {
-	FullName   string  `json:"fullName"`
-	Role       string  `json:"role"`
-	Velocity   float64 `json:"velocity"`
-	IsActive   bool    `json:"isActive"`
-	TeamID     int     `json:"teamId"`
-	TeamLeadID *int    `json:"teamLeadId"`
+	FullName       string  `json:"fullName"`
+	Role           string  `json:"role"`
+	Velocity       float64 `json:"velocity"`
+	IsActive       bool    `json:"isActive"`
+	TeamID         int     `json:"teamId"`
+	TeamLeadID     *int    `json:"teamLeadId"`
+	BirthDate      *string `json:"birthDate"`
+	EmploymentDate *string `json:"employmentDate"`
+}
+
+type UpdateTeamInput struct {
+	Name   string `json:"name"`
+	LeadID *int   `json:"leadId"`
+}
+
+type UpdatePersonInput struct {
+	FullName       string  `json:"fullName"`
+	Role           string  `json:"role"`
+	Velocity       float64 `json:"velocity"`
+	IsActive       bool    `json:"isActive"`
+	TeamID         int     `json:"teamId"`
+	TeamLeadID     *int    `json:"teamLeadId"`
+	BirthDate      *string `json:"birthDate"`
+	EmploymentDate *string `json:"employmentDate"`
 }

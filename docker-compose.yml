@@ -26,8 +26,11 @@ services:
       dockerfile: Dockerfile
     container_name: persboard-backend
     restart: unless-stopped
+    volumes:
+      - ./.docker/logs:/srv/.docker/logs
     environment:
       PORT: ${PORT:-8080}
+      GRPC_PORT: ${GRPC_PORT:-9090}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       DB_HOST: ${DB_HOST:-postgres}
       DB_PORT: ${DB_PORT:-5432}
@@ -43,11 +46,18 @@ services:
       EAZYBI_AUTH_MODE: ${EAZYBI_AUTH_MODE:-}
       EAZYBI_USERNAME: ${EAZYBI_USERNAME:-}
       EAZYBI_PASSWORD: ${EAZYBI_PASSWORD:-}
+      EAZYBI_JIRA_TOKEN: ${EAZYBI_JIRA_TOKEN:-}
       EAZYBI_EMBED_TOKEN: ${EAZYBI_EMBED_TOKEN:-}
       EAZYBI_ALLOWED_HOSTS: ${EAZYBI_ALLOWED_HOSTS:-}
       CALENDAR_METRICS_JSON: ${CALENDAR_METRICS_JSON:-}
+
+      # Request / app logging (files under ./.docker/logs on host)
+      LOG_DIR: ${LOG_DIR:-.docker/logs}
+      LOG_DEBUG: ${LOG_DEBUG:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-}
     ports:
       - "8080:8080"
+      - "9090:9090"
     depends_on:
       postgres:
         condition: service_healthy

@@ -6,19 +6,36 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"persboard/backend/internal/domain"
-	"persboard/backend/internal/service"
+	"persboard/backend/internal/platform"
+	orgusecase "persboard/backend/internal/usecase/org"
 )
 
 type Handler struct {
-	service *service.OrgService
+	usecase orgUseCase
 }
 
-func NewHandler(service *service.OrgService) *Handler {
-	return &Handler{service: service}
+type orgUseCase interface {
+	Health(ctx context.Context) (map[string]string, error)
+	DashboardMetrics(ctx context.Context) (domain.DashboardResponse, error)
+	PeopleStats(ctx context.Context) (domain.PersonStats, error)
+	OrgStructure(ctx context.Context) (domain.OrgStructureResponse, error)
+	CreateTeam(ctx context.Context, input domain.CreateTeamInput) (int, error)
+	UpdateTeam(ctx context.Context, id int, input domain.UpdateTeamInput) error
+	DeleteTeam(ctx context.Context, id int) error
+	CreatePerson(ctx context.Context, input domain.CreatePersonInput) (int, error)
+	UpdatePerson(ctx context.Context, id int, input domain.UpdatePersonInput) error
+	DeletePerson(ctx context.Context, id int) error
+}
+
+func NewHandler(usecase orgUseCase) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -27,14 +44,17 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/people/stats", h.peopleStats)
 	mux.HandleFunc("/api/v1/org-structure", h.orgStructure)
 	mux.HandleFunc("/api/v1/teams", h.createTeam)
+	mux.HandleFunc("/api/v1/teams/", h.teamByID)
 	mux.HandleFunc("/api/v1/people", h.createPerson)
+	mux.HandleFunc("/api/v1/people/", h.personByID)
 }
 
 func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/health", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	status, err := h.service.Health(ctx)
+	status, err := h.usecase.Health(ctx)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, status)
 		return
@@ -47,13 +67,14 @@ func (h *Handler) dashboardMetrics(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodGet)
 		return
 	}
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/dashboard/metrics", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	resp, err := h.service.DashboardMetrics(ctx)
+	resp, err := h.usecase.DashboardMetrics(ctx)
 	if err != nil {
-		internalError(w)
+		internalErrorLogged(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -64,13 +85,14 @@ func (h *Handler) peopleStats(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodGet)
 		return
 	}
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/people/stats", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	resp, err := h.service.PeopleStats(ctx)
+	resp, err := h.usecase.PeopleStats(ctx)
 	if err != nil {
-		internalError(w)
+		internalErrorLogged(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -81,13 +103,14 @@ func (h *Handler) orgStructure(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodGet)
 		return
 	}
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/org-structure", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 
 	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
 	defer cancel()
 
-	resp, err := h.service.OrgStructure(ctx)
+	resp, err := h.usecase.OrgStructure(ctx)
 	if err != nil {
-		internalError(w)
+		internalErrorLogged(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -98,6 +121,7 @@ func (h *Handler) createTeam(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodPost)
 		return
 	}
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/teams", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 
 	var input domain.CreateTeamInput
 	if err := decodeJSONBody(w, r, &input, 1<<20); err != nil {
@@ -108,7 +132,7 @@ func (h *Handler) createTeam(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	id, err := h.service.CreateTeam(ctx, input)
+	id, err := h.usecase.CreateTeam(ctx, input)
 	if err != nil {
 		writeKnownError(w, err)
 		return
@@ -125,6 +149,7 @@ func (h *Handler) createPerson(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodPost)
 		return
 	}
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/people", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 
 	var input domain.CreatePersonInput
 	if err := decodeJSONBody(w, r, &input, 1<<20); err != nil {
@@ -135,7 +160,7 @@ func (h *Handler) createPerson(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	id, err := h.service.CreatePerson(ctx, input)
+	id, err := h.usecase.CreatePerson(ctx, input)
 	if err != nil {
 		writeKnownError(w, err)
 		return
@@ -147,13 +172,96 @@ func (h *Handler) createPerson(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) teamByID(w http.ResponseWriter, r *http.Request) {
+	id, err := parseIDFromPath(r.URL.Path, "/api/v1/teams/")
+	if err != nil {
+		badRequest(w, err.Error())
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/teams/:id", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()), "id", id)
+		var input domain.UpdateTeamInput
+		if err := decodeJSONBody(w, r, &input, 1<<20); err != nil {
+			badRequest(w, err.Error())
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := h.usecase.UpdateTeam(ctx, id, input); err != nil {
+			writeKnownError(w, err)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "name": input.Name})
+	case http.MethodDelete:
+		slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/teams/:id", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()), "id", id)
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := h.usecase.DeleteTeam(ctx, id); err != nil {
+			writeKnownError(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		methodNotAllowed(w, http.MethodPut+", "+http.MethodDelete)
+	}
+}
+
+func (h *Handler) personByID(w http.ResponseWriter, r *http.Request) {
+	id, err := parseIDFromPath(r.URL.Path, "/api/v1/people/")
+	if err != nil {
+		badRequest(w, err.Error())
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/people/:id", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()), "id", id)
+		var input domain.UpdatePersonInput
+		if err := decodeJSONBody(w, r, &input, 1<<20); err != nil {
+			badRequest(w, err.Error())
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := h.usecase.UpdatePerson(ctx, id, input); err != nil {
+			writeKnownError(w, err)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "fullName": input.FullName})
+	case http.MethodDelete:
+		slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/people/:id", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()), "id", id)
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := h.usecase.DeletePerson(ctx, id); err != nil {
+			writeKnownError(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		methodNotAllowed(w, http.MethodPut+", "+http.MethodDelete)
+	}
+}
+
 func writeKnownError(w http.ResponseWriter, err error) {
-	var validationErr service.ValidationError
+	var validationErr orgusecase.ValidationError
 	if errors.As(err, &validationErr) {
 		badRequest(w, validationErr.Message)
 		return
 	}
-	internalError(w)
+	var notFoundErr orgusecase.NotFoundError
+	if errors.As(err, &notFoundErr) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": notFoundErr.Message})
+		return
+	}
+	internalErrorLogged(w, err)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -189,6 +297,24 @@ func methodNotAllowed(w http.ResponseWriter, allowed string) {
 	writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 }
 
-func internalError(w http.ResponseWriter) {
+func parseIDFromPath(path, prefix string) (int, error) {
+	if !strings.HasPrefix(path, prefix) {
+		return 0, fmt.Errorf("invalid path")
+	}
+	rawID := strings.TrimPrefix(path, prefix)
+	if rawID == "" || strings.Contains(rawID, "/") {
+		return 0, fmt.Errorf("id must be a positive integer")
+	}
+	id, err := strconv.Atoi(rawID)
+	if err != nil || id <= 0 {
+		return 0, fmt.Errorf("id must be a positive integer")
+	}
+	return id, nil
+}
+
+func internalErrorLogged(w http.ResponseWriter, err error) {
+	if err != nil {
+		slog.Error("internal server error", "err", err)
+	}
 	writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 }

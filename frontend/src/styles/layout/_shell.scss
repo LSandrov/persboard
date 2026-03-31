@@ -1,0 +1,67 @@
+.app-nav {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-nav a {
+  text-decoration: none;
+  color: #1e3a8a;
+  font-weight: 600;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+.app-nav .nav-link-active {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+.tech-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      180px circle at var(--parallax-x) var(--parallax-y),
+      rgba(148, 163, 184, 0.14),
+      rgba(148, 163, 184, 0) 70%
+    ),
+    radial-gradient(circle, rgba(148, 163, 184, 0.275) 0.9px, transparent 1.1px),
+    linear-gradient(180deg, #f8fafc, #f1f5f9);
+  background-size:
+    100% 100%,
+    22px 22px,
+    100% 100%;
+  background-position:
+    0 0,
+    calc((var(--parallax-x) - 50%) * 0.05) calc((var(--parallax-y) - 50%) * 0.05),
+    0 0;
+}
+
+.layout {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+}

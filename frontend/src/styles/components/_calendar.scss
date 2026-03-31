@@ -1,0 +1,88 @@
+.calendar-layout {
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+
+.calendar-block {
+  margin-top: 12px;
+}
+
+.calendar-scroll {
+  overflow: auto;
+  max-width: 100%;
+}
+
+.calendar-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 900px;
+  width: max-content;
+  font-size: 13px;
+}
+
+.calendar-table th,
+.calendar-table td {
+  border-right: 1px solid #e8eaed;
+  border-bottom: 1px solid #e8eaed;
+  padding: 7px 10px;
+  text-align: center;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.calendar-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  z-index: 1;
+  color: #5f6368;
+  font-weight: 600;
+  border-top: 1px solid #e8eaed;
+}
+
+.calendar-table tr > :first-child {
+  border-left: 1px solid #e8eaed;
+}
+
+.calendar-table tbody tr:hover td {
+  background: #f5f9ff;
+}
+
+.metric-col {
+  text-align: left;
+}
+
+.metric-name {
+  text-align: left;
+  font-weight: 500;
+  color: #202124;
+}
+
+.weight-cell {
+  width: 120px;
+}
+
+.weight-input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.day-col {
+  font-size: 12px;
+  color: #475569;
+}
+
+.value-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.target-col {
+  width: 120px;
+}
+
+.target-cell {
+  width: 120px;
+  font-variant-numeric: tabular-nums;
+}

@@ -18,6 +18,12 @@ export function useDashboardOverview() {
     return new Date(updatedAt.value).toLocaleString();
   });
 
+  const orgSummary = computed(() => {
+    const totalTeams = teams.value.length;
+    const totalMembers = teams.value.reduce((sum, team) => sum + team.members.length, 0);
+    return { totalTeams, totalMembers };
+  });
+
   async function loadDashboard() {
     loading.value = true;
     error.value = "";
@@ -48,6 +54,7 @@ export function useDashboardOverview() {
     metrics,
     teams,
     peopleStats,
+    orgSummary,
     formattedUpdatedAt,
     loadDashboard
   };

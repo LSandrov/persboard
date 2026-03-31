@@ -75,7 +75,16 @@ func (r *Repository) GetTeams(ctx context.Context) ([]domain.Team, error) {
 func (r *Repository) GetPeople(ctx context.Context) ([]domain.Person, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, full_name, role, velocity, is_active, team_id, team_lead_id
+		`SELECT
+		    id,
+		    full_name,
+		    role,
+		    velocity,
+		    is_active,
+		    team_id,
+		    team_lead_id,
+		    to_char(birth_date, 'YYYY-MM-DD') as birth_date,
+		    to_char(employment_date, 'YYYY-MM-DD') as employment_date
 		 FROM people
 		 ORDER BY team_id, id`,
 	)
@@ -95,6 +104,8 @@ func (r *Repository) GetPeople(ctx context.Context) ([]domain.Person, error) {
 			&person.IsActive,
 			&person.TeamID,
 			&person.TeamLeadID,
+			&person.BirthDate,
+			&person.EmploymentDate,
 		); err != nil {
 			return nil, err
 		}
@@ -123,8 +134,8 @@ func (r *Repository) CreatePerson(ctx context.Context, input domain.CreatePerson
 	var id int
 	err := r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO people (full_name, role, velocity, is_active, team_id, team_lead_id)
-		 VALUES ($1, $2, $3, $4, $5, $6)
+		`INSERT INTO people (full_name, role, velocity, is_active, team_id, team_lead_id, birth_date, employment_date)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8::date)
 		 RETURNING id`,
 		input.FullName,
 		input.Role,
@@ -132,8 +143,113 @@ func (r *Repository) CreatePerson(ctx context.Context, input domain.CreatePerson
 		input.IsActive,
 		input.TeamID,
 		input.TeamLeadID,
+		input.BirthDate,
+		input.EmploymentDate,
 	).Scan(&id)
 	return id, err
+}
+
+func (r *Repository) UpdateTeam(ctx context.Context, id int, input domain.UpdateTeamInput) error {
+	result, err := r.db.ExecContext(
+		ctx,
+		`UPDATE teams
+		 SET name = $1, lead_id = $2
+		 WHERE id = $3`,
+		input.Name,
+		input.LeadID,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) DeleteTeam(ctx context.Context, id int) error {
+	result, err := r.db.ExecContext(
+		ctx,
+		`DELETE FROM teams
+		 WHERE id = $1`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) UpdatePerson(ctx context.Context, id int, input domain.UpdatePersonInput) error {
+	result, err := r.db.ExecContext(
+		ctx,
+		`UPDATE people
+		 SET full_name = $1,
+		     role = $2,
+		     velocity = $3,
+		     is_active = $4,
+		     team_id = $5,
+		     team_lead_id = $6,
+		     birth_date = $7::date,
+		     employment_date = $8::date
+		 WHERE id = $9`,
+		input.FullName,
+		input.Role,
+		input.Velocity,
+		input.IsActive,
+		input.TeamID,
+		input.TeamLeadID,
+		input.BirthDate,
+		input.EmploymentDate,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) DeletePerson(ctx context.Context, id int) error {
+	result, err := r.db.ExecContext(
+		ctx,
+		`DELETE FROM people
+		 WHERE id = $1`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func (r *Repository) UpsertMetricWeights(ctx context.Context, defs []domain.CalendarMetricDefinition) error {

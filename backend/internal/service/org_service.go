@@ -17,6 +17,14 @@ func (e ValidationError) Error() string {
 	return e.Message
 }
 
+type NotFoundError struct {
+	Message string
+}
+
+func (e NotFoundError) Error() string {
+	return e.Message
+}
+
 type OrgService struct {
 	repo domain.Repository
 }
@@ -123,4 +131,83 @@ func (s *OrgService) CreatePerson(ctx context.Context, input domain.CreatePerson
 	}
 
 	return s.repo.CreatePerson(ctx, input)
+}
+
+func (s *OrgService) UpdateTeam(ctx context.Context, id int, input domain.UpdateTeamInput) error {
+	if id <= 0 {
+		return ValidationError{Message: "id must be positive"}
+	}
+
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" || len(input.Name) > 120 {
+		return ValidationError{Message: "name is required and must be <= 120 chars"}
+	}
+
+	if err := s.repo.UpdateTeam(ctx, id, input); err != nil {
+		if err == domain.ErrNotFound {
+			return NotFoundError{Message: "team not found"}
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (s *OrgService) DeleteTeam(ctx context.Context, id int) error {
+	if id <= 0 {
+		return ValidationError{Message: "id must be positive"}
+	}
+
+	if err := s.repo.DeleteTeam(ctx, id); err != nil {
+		if err == domain.ErrNotFound {
+			return NotFoundError{Message: "team not found"}
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (s *OrgService) UpdatePerson(ctx context.Context, id int, input domain.UpdatePersonInput) error {
+	if id <= 0 {
+		return ValidationError{Message: "id must be positive"}
+	}
+
+	input.FullName = strings.TrimSpace(input.FullName)
+	input.Role = strings.TrimSpace(input.Role)
+
+	switch {
+	case input.FullName == "" || len(input.FullName) > 120:
+		return ValidationError{Message: "fullName is required and must be <= 120 chars"}
+	case input.Role == "" || len(input.Role) > 60:
+		return ValidationError{Message: "role is required and must be <= 60 chars"}
+	case input.TeamID <= 0:
+		return ValidationError{Message: "teamId must be positive"}
+	case input.Velocity < 0 || input.Velocity > 100:
+		return ValidationError{Message: "velocity must be between 0 and 100"}
+	}
+
+	if err := s.repo.UpdatePerson(ctx, id, input); err != nil {
+		if err == domain.ErrNotFound {
+			return NotFoundError{Message: "person not found"}
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (s *OrgService) DeletePerson(ctx context.Context, id int) error {
+	if id <= 0 {
+		return ValidationError{Message: "id must be positive"}
+	}
+
+	if err := s.repo.DeletePerson(ctx, id); err != nil {
+		if err == domain.ErrNotFound {
+			return NotFoundError{Message: "person not found"}
+		}
+		return err
+	}
+
+	return nil
 }

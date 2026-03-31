@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"sort"
@@ -70,31 +71,28 @@ func (s *CalendarService) CalendarMetrics(ctx context.Context, from, to time.Tim
 		}
 
 		if s.eazy == nil || def.EazyBIReportID <= 0 {
-			// fallback mode: predictable mock values
-			for i, day := range days {
-				if def.TargetValue.Bool != nil {
-					v := mockMetricBoolValue(def.Key, i)
-					values[day] = &domain.CalendarMetricCellValue{Bool: &v}
-				} else {
-					v := mockMetricValue(def.Key, i)
-					values[day] = &domain.CalendarMetricCellValue{Number: &v}
-				}
-			}
+			fillMockMetricValues(def, days, values)
 		} else {
 			// request eazybi data once per metric for the whole date range
 			selectedPages, err := s.buildSelectedPages(def, days)
 			if err != nil {
-				return domain.CalendarMetricsResponse{}, err
+				slog.WarnContext(ctx, "eazybi: falling back to mock metric values", "metric_key", def.Key, "reason", "build_pages", "err", err)
+				fillMockMetricValues(def, days, values)
+				continue
 			}
 
 			csvText, err := s.eazy.ExportCSV(ctx, def.EazyBIReportID, selectedPages)
 			if err != nil {
-				return domain.CalendarMetricsResponse{}, err
+				slog.WarnContext(ctx, "eazybi: export failed, using mock values", "metric_key", def.Key, "report_id", def.EazyBIReportID, "err", err)
+				fillMockMetricValues(def, days, values)
+				continue
 			}
 
 			parsed, err := eazybi.ParseCSVMetric(csvText, "", "", def.TargetValue.Bool != nil)
 			if err != nil {
-				return domain.CalendarMetricsResponse{}, err
+				slog.WarnContext(ctx, "eazybi: csv parse failed, using mock values", "metric_key", def.Key, "err", err)
+				fillMockMetricValues(def, days, values)
+				continue
 			}
 
 			for _, day := range days {
@@ -190,6 +188,18 @@ func mockMetricBoolValue(metricKey string, i int) bool {
 	}
 	// deterministic mock: alternates by day index parity
 	return (seed+i)%2 == 0
+}
+
+func fillMockMetricValues(def domain.CalendarMetricDefinition, days []string, values map[string]*domain.CalendarMetricCellValue) {
+	for i, day := range days {
+		if def.TargetValue.Bool != nil {
+			v := mockMetricBoolValue(def.Key, i)
+			values[day] = &domain.CalendarMetricCellValue{Bool: &v}
+		} else {
+			v := mockMetricValue(def.Key, i)
+			values[day] = &domain.CalendarMetricCellValue{Number: &v}
+		}
+	}
 }
 
 // LoadCalendarMetricsFromEnv parses CALENDAR_METRICS_JSON from env.
@@ -323,6 +333,7 @@ func BuildEazyBIClientFromEnv() (*eazybi.Client, error) {
 		Username:     os.Getenv("EAZYBI_USERNAME"),
 		Password:     os.Getenv("EAZYBI_PASSWORD"),
 		EmbedToken:   os.Getenv("EAZYBI_EMBED_TOKEN"),
+		JiraToken:    os.Getenv("EAZYBI_JIRA_TOKEN"),
 		AllowedHosts: allowedHosts,
 	}
 
@@ -330,6 +341,11 @@ func BuildEazyBIClientFromEnv() (*eazybi.Client, error) {
 	if strings.ToLower(authMode) == "basic" {
 		if strings.TrimSpace(cfg.Username) == "" || strings.TrimSpace(cfg.Password) == "" {
 			return nil, ValidationError{Message: "EAZYBI_USERNAME/EAZYBI_PASSWORD are required for basic auth"}
+		}
+	}
+	if strings.EqualFold(authMode, "jira_token") || strings.EqualFold(authMode, "token") || strings.EqualFold(authMode, "bearer") {
+		if strings.TrimSpace(cfg.JiraToken) == "" {
+			return nil, ValidationError{Message: "EAZYBI_JIRA_TOKEN is required for jira token auth"}
 		}
 	}
 

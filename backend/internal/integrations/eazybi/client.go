@@ -22,10 +22,11 @@ type Config struct {
 	BaseURL      string // e.g. https://jira.example.com
 	ExportPrefix string // e.g. /plugins/servlet/eazybi
 	AccountID    string
-	AuthMode     string // basic or none
+	AuthMode     string // basic, embed, jira_token, token, bearer or none
 	Username     string
 	Password     string
 	EmbedToken   string
+	JiraToken    string
 	HTTPTimeout  time.Duration
 	AllowedHosts []string
 	TimeRegex    *regexp.Regexp
@@ -72,6 +73,11 @@ func (c *Client) ExportCSV(ctx context.Context, reportID int, selectedPages []st
 		if c.cfg.EmbedToken == "" {
 			return "", errors.New("embed token auth requested but EAZYBI_EMBED_TOKEN is empty")
 		}
+	case "jira_token", "token", "bearer":
+		if c.cfg.JiraToken == "" {
+			return "", errors.New("jira token auth requested but EAZYBI_JIRA_TOKEN is empty")
+		}
+		req.Header.Set("Authorization", "Bearer "+c.cfg.JiraToken)
 	default:
 		// no auth
 	}

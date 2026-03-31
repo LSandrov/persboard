@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"persboard/backend/internal/domain"
+	"persboard/backend/internal/platform"
 	"persboard/backend/internal/service"
 )
 
@@ -28,6 +30,8 @@ func (h *CalendarHandler) getCalendarMetrics(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/calendar/metrics", "method", r.Method, "query", r.URL.RawQuery, "req_id", platform.RequestIDFromContext(r.Context()))
+
 	fromStr := r.URL.Query().Get("from")
 	toStr := r.URL.Query().Get("to")
 
@@ -46,7 +50,7 @@ func (h *CalendarHandler) getCalendarMetrics(w http.ResponseWriter, r *http.Requ
 			badRequest(w, err.Error())
 			return
 		}
-		internalError(w)
+		internalErrorLogged(w, err)
 		return
 	}
 
@@ -58,6 +62,8 @@ func (h *CalendarHandler) updateMetricWeight(w http.ResponseWriter, r *http.Requ
 		methodNotAllowed(w, http.MethodPut)
 		return
 	}
+
+	slog.DebugContext(r.Context(), "api handler", "route", "/api/v1/calendar/metric-weights", "method", r.Method, "req_id", platform.RequestIDFromContext(r.Context()))
 
 	var input domain.UpdateMetricWeightInput
 	if err := decodeJSONBody(w, r, &input, 64<<10); err != nil {
@@ -74,7 +80,7 @@ func (h *CalendarHandler) updateMetricWeight(w http.ResponseWriter, r *http.Requ
 			badRequest(w, err.Error())
 			return
 		}
-		internalError(w)
+		internalErrorLogged(w, err)
 		return
 	}
 
